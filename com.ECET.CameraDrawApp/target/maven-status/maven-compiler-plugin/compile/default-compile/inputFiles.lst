@@ -1,0 +1,12 @@
+/home/ur/workspace/com.ECET.CameraDrawApp/src/main/java/com/ECET/CameraDrawApp/impl/Activator.java
+/home/ur/workspace/com.ECET.CameraDrawApp/src/main/java/com/ECET/CameraDrawApp/impl/CameraDaemonService.java
+/home/ur/workspace/com.ECET.CameraDrawApp/src/main/java/com/ECET/CameraDrawApp/impl/CameraDrawingAppInstallationNodeContribution.java
+/home/ur/workspace/com.ECET.CameraDrawApp/src/main/java/com/ECET/CameraDrawApp/impl/CameraDrawingAppInstallationNodeService.java
+/home/ur/workspace/com.ECET.CameraDrawApp/src/main/java/com/ECET/CameraDrawApp/impl/CameraDrawingAppInstallationNodeView.java
+/home/ur/workspace/com.ECET.CameraDrawApp/src/main/java/com/ECET/CameraDrawApp/impl/CameraDrawingAppProgramNodeContribution.java
+/home/ur/workspace/com.ECET.CameraDrawApp/src/main/java/com/ECET/CameraDrawApp/impl/CameraDrawingAppProgramNodeService.java
+/home/ur/workspace/com.ECET.CameraDrawApp/src/main/java/com/ECET/CameraDrawApp/impl/CameraDrawingAppProgramNodeView.java
+/home/ur/workspace/com.ECET.CameraDrawApp/src/main/java/com/ECET/CameraDrawApp/impl/Style.java
+/home/ur/workspace/com.ECET.CameraDrawApp/src/main/java/com/ECET/CameraDrawApp/impl/V3Style.java
+/home/ur/workspace/com.ECET.CameraDrawApp/src/main/java/com/ECET/CameraDrawApp/impl/V5Style.java
+/home/ur/workspace/com.ECET.CameraDrawApp/src/main/java/com/ECET/CameraDrawApp/impl/XmlRpcCameraDrawingAppDaemonInterface.java
