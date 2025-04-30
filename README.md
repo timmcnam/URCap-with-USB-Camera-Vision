@@ -36,10 +36,14 @@ This URCap integrates a USB camera into PolyScope, providing a live video feed a
 
 ## Prerequisites
 
-- Universal Robots cobot with URCap SDK 1.13.0
-- Java 8 or higher
-- OpenCV for Python installed on the robot controller
+- Universal Robots **eSeries** cobot with with Polyscoper version 5.11 or higher.
+- Java 8 or higher.
+- **OpenCV** for Python 2.7 installed on the robot controller.
+- **numbpy** for Python 2.7 installed on the robot controller.
 
+Note: To use this URCap, **the libraries must be installed**. SSH into the controller and install [pip](https://pip.pypa.io/en/stable/installation/). Once this is done, you can then execute pip install opencv-python and numbpy. You will get the version needed for what version of python is running in the Linux Image on the controller.
+
+If you do not want to do this, you can have a seperate resouce folder for necessary libraries. However, you will need to set up your own development environment and create you own urcap. 
 ---
 
 ## Repository Structure
@@ -63,60 +67,57 @@ URCap-with-USB-Camera-Vision/
 ├── build/             # URCap bundle output
 └── README.md          # Project documentation
 ```
-
 ---
 
 ## Installation
 
-1. Clone this repository:
+```bash
+git clone https://github.com/timmcnam/URCap-with-USB-Camera-Vision.git
+```
+1. Open in your IDE (IntelliJ/Eclipse).  
+2. Build with Maven/Gradle → produces `.urcap`.  
+3. Copy to robot:  
    ```bash
-   git clone https://github.com/your-org/URCap-with-USB-Camera-Vision.git
+   scp target/*.urcap robot@<controller>:/programs/URCaps/
    ```
-2. Open the URCap project in your IDE (e.g., IntelliJ or Eclipse).
-3. Build the URCap .jar (using Maven or Gradle as configured).
-4. Copy the generated `.urcap` bundle into the robot controller's `/programs/URCaps` folder.
 
 ---
 
 ## Running the Daemon
 
-On the robot controller shell:
-
 ```bash
-cd /path/to/URCaps/URCap-with-USB-Camera-Vision/daemon
+cd daemon
 python cam-daemon.py
 ```
-
-This starts an XML-RPC server on `127.0.0.1:40405` that:
-- Captures camera frames (`captureImage()`)
-- Returns the latest image path (`getImagePath()`)
-- Detects shapes (`detectShapeType()`)
-- Checks camera availability (`isCameraAvailable()`)
+The daemon listens on `127.0.0.1:40405` and exposes:
+- `captureImage()`  
+- `getImagePath()`  
+- `detectShapeType()`  
+- `isCameraAvailable()`  
 
 ---
 
 ## Building & Deploying the URCap
 
-In your IDE or via CLI:
-
 ```bash
-# If using Maven
+# Build
 mvn clean package
-# Copy URCap to robot
-scp target/URCap-with-USB-Camera-Vision-1.0.urcap robot@<controller>:/programs/URCaps/
-```  
-Restart the URCap service on the robot to load the new version.
+
+# Deploy
+scp target/URCap-with-USB-Camera-Vision-*.urcap robot@<controller>:/programs/URCaps/
+```
+Restart URCaps on the robot to load.
 
 ---
 
 ## Usage
 
-1. In Polyscope, open the **Installation** tab and select **Vision Camera**.
-2. Click **Start Server** to launch the XML-RPC daemon from Java.
-3. Switch to the **Program** tab, add **Camera Feed** node.
-4. The live camera preview will update automatically.
-5. Press **Refresh** to run shape detection and update the "Detected shape:" label.
-6. During script generation, the URCap will emit a call to the corresponding subroutine based on the last detected shape.
+1. In Polyscope → **Installation** tab → select **Vision Camera**.  
+2. Click **Start Server**.  
+3. Switch to **Program** tab → add **Camera Feed** node.  
+4. Live preview auto-updates.  
+5. Press **Refresh** to classify shape and update label.  
+6. Generated script calls the subroutine matching last detected shape.
 
 ---
 
@@ -124,74 +125,83 @@ Restart the URCap service on the robot to load the new version.
 
 ### Activator
 
-Registers the InstallationNodeService, ProgramNodeService, and DaemonService:
+Registers services for installation, program node, and daemon:
+
 ```java
-@Override
 public void start(BundleContext ctx) {
-    CamDaemonService daemon = new CamDaemonService();
-    ctx.registerService(SwingInstallationNodeService.class, new CamAppInstallationNodeService(daemon), null);
-    ctx.registerService(SwingProgramNodeService.class, new CamAppProgramNodeService(), null);
-    ctx.registerService(DaemonService.class, daemon, null);
+  CamDaemonService daemon = new CamDaemonService();
+  ctx.registerService(InstallationNodeService.class, new CamAppInstallationNodeService(daemon), null);
+  ctx.registerService(ProgramNodeService.class, new CamAppProgramNodeService(), null);
+  ctx.registerService(DaemonService.class, daemon, null);
 }
 ```
 
 ### Installation Node
 
-- **openView()**: starts monitoring daemon state and updates buttons & status every second
-- **generateScript()**: writes a popup test for XML-RPC reachability
-
-```java
-Runnable uiUpdater = () -> view.setServerStatusLabel(getDaemonStateText());
-executor.scheduleAtFixedRate(() -> EventQueue.invokeLater(uiUpdater), 0, 1, TimeUnit.SECONDS);
-```
+- **openView()**: starts a 1 Hz UI‐update thread to toggle Start/Stop buttons.  
+- **generateScript()**: injects a simple XML-RPC reachability popup.
 
 ### Program Node
 
-- **openView()**: starts daemon monitor + `startImageUpdateTimer()`
-- **updateImage()**: snapshot & display preview every 250ms
-- **onRefreshButtonClick()**: calls `updateImage()` + `updateShape()`
-- **generateScript()**: emits URScript subroutine call based on `lastShape`
-
-```java
-public void generateScript(ScriptWriter w) {
-  w.assign("shape", '"' + lastShape + '"');
-  w.appendLine("if shape == \"square\": DrawSquare() ... end");
-}
-```
+- **openView()** calls `startImageUpdateTimer()` (250 ms interval).  
+- **updateImage()** grabs a frame and `view.displayImage(...)`.  
+- **onRefreshButtonClick()** calls:
+  ```java
+  updateImage();
+  updateShape();
+  ```
+- **updateShape()** invokes `detectShapeType()` and `view.setShapeText(...)`.  
+- **generateScript()** emits URScript:
+  ```python
+  if shape=="square": DrawSquare()
+  elif shape=="circle": DrawCircle()
+  …
+  end
+  ```
 
 ### XML-RPC Interface
 
-Wraps Apache XmlRpcClient to call Python daemon endpoints:
+Wraps Apache XmlRpcClient to talk with Python daemon:
+
 ```java
-public String detectShapeType() throws Exception {
-  Object res = client.execute("detectShapeType", new ArrayList<>());
-  return parseString(res);
+public String detectShapeType() throws XmlRpcException { 
+  Object res = client.execute("detectShapeType", new ArrayList<>()); 
+  return parseString(res); 
 }
 ```
 
 ### Python Daemon
 
-Listens on port 40405, using `SimpleXMLRPCServer`:
+Key sections from `daemon/cam-daemon.py`:
+
 ```python
-server = SimpleXMLRPCServer(("127.0.0.1", 40405))
-server.register_function(capture_image, "captureImage")
-server.register_function(detect_shape_type, "detectShapeType")
+from SimpleXMLRPCServer import SimpleXMLRPCServer
+from SocketServer import ThreadingMixIn
+
+class MultithreadedXMLRPCServer(ThreadingMixIn, SimpleXMLRPCServer): pass
+
+server = MultithreadedXMLRPCServer(("127.0.0.1",40405))
+server.register_function(capture_image,      "captureImage")
+server.register_function(get_image_path,     "getImagePath")
+server.register_function(detect_shape_type,  "detectShapeType")
+server.register_function(is_camera_available,"isCameraAvailable")
 server.serve_forever()
 ```
 
-Shape detection uses OpenCV `findContours()` + `approxPolyDP()`:
+**Shape detection** uses OpenCV:
+
 ```python
 def detect_shape_type():
-    contours, _ = cv2.findContours(...)
+    # binarize, findContours, pick largest
     cnt = max(contours, key=cv2.contourArea)
-    approx = cv2.approxPolyDP(cnt, 0.02*peri, True)
+    approx = cv2.approxPolyDP(cnt, 0.02*cv2.arcLength(cnt,True), True)
     verts = len(approx)
-    return {3: 'triangle', 4: 'square'}.get(verts, 'circle')
+    return {3:"triangle",4:"square"}.get(verts, "polygon")
 ```
 
 ---
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
+This project is MIT-licensed. See [LICENSE](LICENSE).  
+```
