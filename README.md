@@ -44,6 +44,7 @@ This URCap integrates a USB camera into PolyScope, providing a live video feed a
 Note: To use this URCap, **the libraries must be installed**. SSH into the controller and install [pip](https://pip.pypa.io/en/stable/installation/). Once this is done, you can then execute pip install opencv-python and numbpy. You will get the version needed for what version of python is running in the Linux Image on the controller.
 
 If you do not want to do this, you can have a seperate resouce folder for necessary libraries. However, you will need to set up your own development environment and create you own urcap. 
+
 ---
 
 ## Repository Structure
